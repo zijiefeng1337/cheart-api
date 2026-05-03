@@ -23,8 +23,12 @@ async function verifyTurnstile(token) {
             secret: '0x4AAAAAADHW2HP8XJXbvAiaNpbLbXCZiaA',
             response: token
         });
+        if (!res.data.success) {
+            console.error('Turnstile 验证详情:', res.data);
+        }
         return res.data.success;
     } catch (e) {
+        console.error('Turnstile API 请求异常:', e.message);
         return false;
     }
 }
