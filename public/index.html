@@ -152,12 +152,12 @@
         async function handleAuth(type) {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const tokenElement = document.querySelector('[name=cf-turnstile-response]');
+            const tokenElement = document.querySelector('#auth-modal [name=cf-turnstile-response]');
             const turnstileToken = tokenElement ? tokenElement.value : '';
 
             if (!turnstileToken) {
                 showToast("Request failed : CAPTCHA timeout");
-                console.log("No turnstile token found");
+                console.log("No auth turnstile token found");
                 return;
             }
             
@@ -171,41 +171,10 @@
             if (res.ok) {
                 document.getElementById('auth-modal').style.display = 'none';
                 checkAuth();
-                // 登录/注册成功后自动刷新资源列表，确保权限已同步
                 fetchResources();
             }
         }
         
-        async function handleUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const tokenElement = document.querySelector('#upload-section [name=cf-turnstile-response]');
-            const turnstileToken = tokenElement ? tokenElement.value : '';
-            
-            if (!turnstileToken) {
-                showToast("Request failed : CAPTCHA timeout");
-                console.log("No turnstile token found");
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('turnstileToken', turnstileToken);
-            
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            showToast((await res.json()).message);
-            fetchResources();
-        }
-        }
-        // ...
-        async function handleUpload() {
-            // ...
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            showToast((await res.json()).message);
-            fetchResources();
-        }
-        }
-        }
-        // 页面加载时获取资源列表
         async function fetchResources() {
             const res = await fetch('/api/resources');
             const data = await res.json();
@@ -217,9 +186,8 @@
                 </div>
             `).join('');
         }
-        fetchResources(); // 初始化加载
+        fetchResources();
         
-        // 修正上传后的列表更新
         async function handleUpload() {
             const fileInput = document.getElementById('fileInput');
             const tokenElement = document.querySelector('#upload-section [name=cf-turnstile-response]');
@@ -227,7 +195,7 @@
             
             if (!turnstileToken) {
                 showToast("Request failed : CAPTCHA timeout");
-                console.log("No turnstile token found");
+                console.log("No upload turnstile token found");
                 return;
             }
 
