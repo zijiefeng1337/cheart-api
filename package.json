@@ -1,22 +1,21 @@
 {
   "name": "cheart-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Resource sharing center",
+  "main": "server/app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zijiefeng1337/cheart-api.git"
   },
-  "keywords": [],
-  "author": "",
+  "author": "zijiefeng",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "axios": "^1.16.0",
-    "bcryptjs": "^3.0.3",
-    "body-parser": "^2.2.2",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.1.1"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1"
   }
 }
