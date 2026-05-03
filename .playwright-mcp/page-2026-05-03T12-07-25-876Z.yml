@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Resource Depot" [level=1] [ref=e3]
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "注册/登录" [level=2] [ref=e6]
+      - textbox "用户名" [ref=e7]
+      - textbox "密码" [ref=e8]
+      - button "注册" [ref=e9] [cursor=pointer]
+      - button "登录" [ref=e10] [cursor=pointer]
+    - generic [ref=e11]:
+      - heading "上传资源" [level=2] [ref=e12]
+      - button "Choose File" [ref=e13]
+      - button "上传" [ref=e14] [cursor=pointer]

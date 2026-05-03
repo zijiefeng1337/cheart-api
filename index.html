@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资源分享中心 - 科技感黑金版</title>
+    <style>
+        :root {
+            --bg-color: oklch(0.12 0.01 250);
+            --text-color: oklch(0.95 0.005 250);
+            --accent-color: oklch(0.75 0.18 60);
+            --card-bg: oklch(0.18 0.01 250);
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--card-bg);
+        }
+        h1 { color: var(--accent-color); }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin-top: 2rem;
+        }
+        .resource-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s ease-out;
+        }
+        .resource-card:hover {
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px -2px rgba(0,0,0,0.3);
+        }
+        .btn-download {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Resource Depot</h1>
+        <p>高性能数字资源分享中心</p>
+    </header>
+    <div class="container" id="app">
+        <!-- 资源列表将在此处动态注入 -->
+    </div>
+    <script>
+        const resources = [
+            { id: 1, name: "高性能渲染引擎工具.zip", size: "124 MB" },
+            { id: 2, name: "设计系统核心组件库.rar", size: "45 MB" },
+            { id: 3, name: "项目开发文档规范.pdf", size: "2 MB" }
+        ];
+
+        const app = document.getElementById('app');
+        resources.forEach(res => {
+            const div = document.createElement('div');
+            div.className = 'resource-card';
+            div.innerHTML = `
+                <div>
+                    <strong>${res.name}</strong><br>
+                    <small>${res.size}</small>
+                </div>
+                <a href="#" class="btn-download" onclick="alert('开始下载: ${res.name}')">下载</a>
+            `;
+            app.appendChild(div);
+        });
+    </script>
+</body>
+</html>
