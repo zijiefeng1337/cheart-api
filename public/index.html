@@ -171,6 +171,8 @@
             if (res.ok) {
                 document.getElementById('auth-modal').style.display = 'none';
                 checkAuth();
+                // 登录/注册成功后自动刷新资源列表，确保权限已同步
+                fetchResources();
             }
         }
         
