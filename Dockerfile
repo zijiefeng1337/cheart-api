@@ -13,6 +13,10 @@ RUN npm install --production
 # 复制项目所有文件到工作目录
 COPY . .
 
+# 添加构建时间参数以强制刷新缓存
+ARG BUILD_DATE
+RUN echo "Build date: $BUILD_DATE"
+
 # 创建上传目录并确保权限
 RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
 

@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build: 
+      context: .
+      args:
+        - BUILD_DATE=${BUILD_DATE:-20260503}
     container_name: resource-depot
     restart: always
     ports:
@@ -11,3 +14,4 @@ services:
       - ./uploads:/app/uploads
     environment:
       - NODE_ENV=production
+      - BUILD_DATE=${BUILD_DATE:-20260503}
