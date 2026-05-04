@@ -100,6 +100,12 @@
     </style>
 </head>
 <body>
+    <div id="gateway-modal" style="display:flex; flex-direction:column; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:1000;">
+        <h2 style="color:var(--accent-color); margin-bottom:2rem;">安全验证</h2>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADHW2C26hJsRbWjA" data-callback="onGatewayVerified"></div>
+        <p style="margin-top:1rem; color:rgba(255,255,255,0.5);">请完成验证以进入网站</p>
+    </div>
+
     <header style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--card-bg);">
         <h1>Resource Depot</h1>
         <div id="auth-header">
@@ -111,7 +117,6 @@
         <h2>注册/登录</h2>
         <input type="text" id="username" placeholder="用户名">
         <input type="password" id="password" placeholder="密码">
-        <div class="cf-turnstile" data-sitekey="0x4AAAAAADHW2C26hJsRbWjA" id="auth-turnstile"></div>
         <button onclick="handleAuth('register')">注册</button>
         <button onclick="handleAuth('login')">登录</button>
         <button onclick="document.getElementById('auth-modal').style.display='none'" style="background:transparent; color:white;">关闭</button>
@@ -125,6 +130,100 @@
             toast.innerText = message;
             toast.style.display = 'block';
             setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        async function onGatewayVerified(token) {
+            const res = await fetch('/api/verify-gateway', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ turnstileToken: token })
+            });
+            if (res.ok) {
+                document.getElementById('gateway-modal').style.display = 'none';
+                checkAuth();
+                fetchResources();
+            } else {
+                showToast("验证失败，请刷新重试");
+            }
+        }
+    </script>
+    <div class="container">
+        <div class="upload-box" id="upload-section" style="display:none;">
+            <h2>上传资源</h2>
+            <input type="file" id="fileInput">
+            <button onclick="handleUpload()">上传</button>
+        </div>
+        <div id="app"></div>
+    </div>
+    <script>
+        // 验证用户状态
+        async function checkAuth() {
+            const res = await fetch('/api/me');
+            if (res.status === 403) {
+                document.getElementById('gateway-modal').style.display = 'flex';
+                return;
+            }
+            const authHeader = document.getElementById('auth-header');
+            const uploadSection = document.getElementById('upload-section');
+            if (res.ok) {
+                const data = await res.json();
+                authHeader.innerHTML = `<span>👤 ${data.username}</span>`;
+                uploadSection.style.display = 'block';
+            } else {
+                authHeader.innerHTML = `<button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>`;
+                uploadSection.style.display = 'none';
+            }
+        }
+
+        async function handleAuth(type) {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const res = await fetch(`/api/${type}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            showToast(data.message);
+            if (res.ok) {
+                document.getElementById('auth-modal').style.display = 'none';
+                checkAuth();
+                fetchResources();
+            } else if (data.needsGateway) {
+                document.getElementById('gateway-modal').style.display = 'flex';
+            }
+        }
+        
+        async function fetchResources() {
+            const res = await fetch('/api/resources');
+            if (res.status === 403) {
+                document.getElementById('gateway-modal').style.display = 'flex';
+                return;
+            }
+            const data = await res.json();
+            const app = document.getElementById('app');
+            app.innerHTML = data.resources.map(file => `
+                <div class="resource-card">
+                    <span>${file}</span>
+                    <a href="/uploads/${file}" download class="btn-download">下载</a>
+                </div>
+            `).join('');
+        }
+        
+        async function handleUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            showToast(data.message);
+            if (res.ok) {
+                fetchResources();
+            } else if (data.needsGateway) {
+                document.getElementById('gateway-modal').style.display = 'flex';
+            }
         }
     </script>
     <div class="container">

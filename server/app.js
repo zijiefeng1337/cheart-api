@@ -10,12 +10,27 @@ const multer = require('multer');
 
 const app = express();
 const JWT_SECRET = 'super-secret-key';
+const GATEWAY_SECRET = 'gateway-secret-key';
 const DB_PATH = path.join(__dirname, 'db.txt');
 const upload = multer({ dest: 'uploads/' });
 
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
+
+// 中间件：检查网关验证
+const gatewayAuth = (req, res, next) => {
+    const token = req.cookies.gateway_token;
+    if (!token) {
+        return res.status(403).send({ message: '请先完成人机验证', needsGateway: true });
+    }
+    try {
+        jwt.verify(token, GATEWAY_SECRET);
+        next();
+    } catch (e) {
+        res.status(403).send({ message: '验证过期，请重新验证', needsGateway: true });
+    }
+};
 
 async function verifyTurnstile(token) {
     try {
@@ -32,6 +47,23 @@ async function verifyTurnstile(token) {
         return false;
     }
 }
+
+// 网关验证接口
+app.post('/api/verify-gateway', async (req, res) => {
+    const { turnstileToken } = req.body;
+    if (await verifyTurnstile(turnstileToken)) {
+        const token = jwt.sign({ verified: true }, GATEWAY_SECRET, { expiresIn: '24h' });
+        res.cookie('gateway_token', token, { httpOnly: true });
+        return res.send({ message: '验证成功' });
+    }
+    res.status(403).send({ message: '验证失败' });
+});
+
+// 应用网关验证中间件到所有后续 API
+app.use('/api', (req, res, next) => {
+    if (req.path === '/verify-gateway') return next();
+    gatewayAuth(req, res, next);
+});
 
 function loadUsers() {
     if (!fs.existsSync(DB_PATH)) return [];
@@ -55,9 +87,7 @@ app.get('/api/resources', (req, res) => {
 });
 
 app.post('/api/register', async (req, res) => {
-    const { username, password, turnstileToken } = req.body;
-    if (!(await verifyTurnstile(turnstileToken))) return res.status(403).send({ message: '验证失败' });
-
+    const { username, password } = req.body;
     let users = loadUsers();
     if (users.find(u => u.username === username)) {
         return res.status(400).send({ message: '用户已存在' });
@@ -69,9 +99,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-    const { username, password, turnstileToken } = req.body;
-    if (!(await verifyTurnstile(turnstileToken))) return res.status(403).send({ message: '验证失败' });
-
+    const { username, password } = req.body;
     let users = loadUsers();
     const user = users.find(u => u.username === username);
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -97,11 +125,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.status(401).send({ message: '请先登录' });
     
-    const turnstileToken = req.body.turnstileToken;
-    if (!turnstileToken || !(await verifyTurnstile(turnstileToken))) {
-        return res.status(403).send({ message: '验证失败' });
-    }
-
     if (!req.file) return res.status(400).send({ message: '未找到上传文件' });
     res.send({ message: '文件上传成功', filename: req.file.filename });
 });
