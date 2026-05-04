@@ -12,7 +12,17 @@ const app = express();
 const JWT_SECRET = 'super-secret-key';
 const GATEWAY_SECRET = 'gateway-secret-key';
 const DB_PATH = path.join(__dirname, 'db.txt');
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ 
+    dest: 'uploads/',
+    limits: { fileSize: 2 * 1024 * 1024 }, // 限制 2MB
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.endsWith('.bsh')) {
+            cb(null, true);
+        } else {
+            cb(new Error('仅允许上传 .bsh 后缀的文件'));
+        }
+    }
+});
 
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -126,12 +136,21 @@ app.get('/api/me', (req, res) => {
     }
 });
 
-app.post('/api/upload', upload.single('file'), async (req, res) => {
-    const token = req.cookies.token;
-    if (!token) return res.status(401).send({ message: '请先登录' });
-    
-    if (!req.file) return res.status(400).send({ message: '未找到上传文件' });
-    res.send({ message: '文件上传成功', filename: req.file.filename });
+app.post('/api/upload', (req, res) => {
+    upload.single('file')(req, res, (err) => {
+        const token = req.cookies.token;
+        if (!token) return res.status(401).send({ message: '请先登录' });
+
+        if (err) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).send({ message: '文件大小超过 2MB 限制' });
+            }
+            return res.status(400).send({ message: err.message });
+        }
+        
+        if (!req.file) return res.status(400).send({ message: '未找到上传文件' });
+        res.send({ message: '文件上传成功', filename: req.file.filename });
+    });
 });
 
 app.listen(3000, () => console.log('服务器运行在 http://localhost:3000'));
