@@ -56,6 +56,7 @@ if (!fs.existsSync(ADMIN_TOKEN_PATH)) {
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 async function verifyTurnstile(token) {
     try {
