@@ -158,73 +158,104 @@
     <script>
         // 验证用户状态
         async function checkAuth() {
-            const res = await fetch('/api/me');
-            if (res.status === 403) {
-                document.getElementById('gateway-modal').style.display = 'flex';
-                return;
-            }
-            const authHeader = document.getElementById('auth-header');
-            const uploadSection = document.getElementById('upload-section');
-            if (res.ok) {
-                const data = await res.json();
-                authHeader.innerHTML = `<span>👤 ${data.username}</span>`;
-                uploadSection.style.display = 'block';
-            } else {
-                authHeader.innerHTML = `<button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>`;
-                uploadSection.style.display = 'none';
+            try {
+                const res = await fetch('/api/me');
+                if (res.status === 403) {
+                    document.getElementById('gateway-modal').style.display = 'flex';
+                    return;
+                }
+                const authHeader = document.getElementById('auth-header');
+                const uploadSection = document.getElementById('upload-section');
+                if (res.ok) {
+                    const data = await res.json();
+                    authHeader.innerHTML = `<span>👤 ${data.username}</span>`;
+                    uploadSection.style.display = 'block';
+                } else {
+                    authHeader.innerHTML = `<button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>`;
+                    uploadSection.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("CheckAuth error:", err);
             }
         }
 
         async function handleAuth(type) {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            const res = await fetch(`/api/${type}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            showToast(data.message);
-            if (res.ok) {
-                document.getElementById('auth-modal').style.display = 'none';
-                checkAuth();
-                fetchResources();
-            } else if (data.needsGateway) {
-                document.getElementById('gateway-modal').style.display = 'flex';
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (!username || !password) {
+                    showToast("请输入用户名和密码");
+                    return;
+                }
+
+                const res = await fetch(`/api/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                showToast(data.message);
+                if (res.ok) {
+                    document.getElementById('auth-modal').style.display = 'none';
+                    checkAuth();
+                    fetchResources();
+                } else if (data.needsGateway) {
+                    document.getElementById('gateway-modal').style.display = 'flex';
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                showToast("操作失败，请查看控制台");
             }
         }
         
         async function fetchResources() {
-            const res = await fetch('/api/resources');
-            if (res.status === 403) {
-                document.getElementById('gateway-modal').style.display = 'flex';
-                return;
+            try {
+                const res = await fetch('/api/resources');
+                if (res.status === 403) {
+                    document.getElementById('gateway-modal').style.display = 'flex';
+                    return;
+                }
+                const data = await res.json();
+                const app = document.getElementById('app');
+                app.innerHTML = data.resources.map(file => `
+                    <div class="resource-card">
+                        <span>${file}</span>
+                        <a href="/uploads/${file}" download class="btn-download">下载</a>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("FetchResources error:", err);
             }
-            const data = await res.json();
-            const app = document.getElementById('app');
-            app.innerHTML = data.resources.map(file => `
-                <div class="resource-card">
-                    <span>${file}</span>
-                    <a href="/uploads/${file}" download class="btn-download">下载</a>
-                </div>
-            `).join('');
         }
         
         async function handleUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            showToast(data.message);
-            if (res.ok) {
-                fetchResources();
-            } else if (data.needsGateway) {
-                document.getElementById('gateway-modal').style.display = 'flex';
+            try {
+                const fileInput = document.getElementById('fileInput');
+                if (!fileInput.files[0]) {
+                    showToast("请选择文件");
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                showToast(data.message);
+                if (res.ok) {
+                    fetchResources();
+                } else if (data.needsGateway) {
+                    document.getElementById('gateway-modal').style.display = 'flex';
+                }
+            } catch (err) {
+                console.error("Upload error:", err);
+                showToast("上传失败");
             }
         }
+
+        // 初始化加载
+        checkAuth();
+        fetchResources();
     </script>
     <div class="container">
         <div class="upload-box" id="upload-section" style="display:none;">

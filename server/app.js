@@ -53,7 +53,7 @@ app.post('/api/verify-gateway', async (req, res) => {
     const { turnstileToken } = req.body;
     if (await verifyTurnstile(turnstileToken)) {
         const token = jwt.sign({ verified: true }, GATEWAY_SECRET, { expiresIn: '24h' });
-        res.cookie('gateway_token', token, { httpOnly: true });
+        res.cookie('gateway_token', token, { httpOnly: true, path: '/' });
         return res.send({ message: '验证成功' });
     }
     res.status(403).send({ message: '验证失败' });
@@ -106,7 +106,7 @@ app.post('/api/login', async (req, res) => {
         return res.status(401).send({ message: '用户名或密码错误' });
     }
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1h' });
-    res.cookie('token', token, { httpOnly: true });
+    res.cookie('token', token, { httpOnly: true, path: '/' });
     res.send({ message: '登录成功' });
 });
 
