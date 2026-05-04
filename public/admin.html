@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理中心 - Resource Depot</title>
+    <style>
+        :root {
+            --bg-color: oklch(0.12 0.01 250);
+            --text-color: oklch(0.95 0.005 250);
+            --accent-color: oklch(0.75 0.18 60);
+            --card-bg: oklch(0.18 0.01 250);
+        }
+        body { background: var(--bg-color); color: var(--text-color); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; }
+        .panel { background: var(--card-bg); padding: 2rem; border-radius: 12px; margin-top: 50px; width: 90%; max-width: 500px; }
+        input { background: rgba(0,0,0,0.2); border: 1px solid var(--accent-color); color: white; padding: 0.8rem; margin: 10px 0; width: 100%; box-sizing: border-box; border-radius: 8px; }
+        button { background: var(--accent-color); border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        #qr-container { margin-top: 20px; text-align: center; display: none; }
+        #qr-container img { max-width: 200px; border: 5px solid white; }
+    </style>
+</head>
+<body>
+    <div class="panel" id="login-panel">
+        <h2 style="color:var(--accent-color)">管理员登录</h2>
+        <input type="password" id="admin-key" placeholder="输入 token.json 中的密钥">
+        <p style="text-align:center; color:rgba(255,255,255,0.3)">- 或者使用 2FA -</p>
+        <input type="text" id="otp-token" placeholder="输入 2FA 6位验证码">
+        <button onclick="handleAdminLogin()">登录管理中心</button>
+    </div>
+
+    <div class="panel" id="admin-tools" style="display:none;">
+        <h2 style="color:var(--accent-color)">管理工具</h2>
+        <button onclick="setup2FA()" style="background:transparent; border:1px solid var(--accent-color); color:var(--accent-color);">配置/查看 2FA 二维码</button>
+        <div id="qr-container">
+            <p>使用 Google Authenticator 扫描：</p>
+            <img id="qr-image" src="" alt="2FA QR Code">
+            <p id="secret-text" style="font-size:0.8rem; margin-top:10px;"></p>
+        </div>
+        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:20px 0;">
+        <button onclick="window.location.href='/'">前往首页（现已拥有删除所有文件权限）</button>
+    </div>
+
+    <script>
+        async function handleAdminLogin() {
+            const key = document.getElementById('admin-key').value;
+            const otpToken = document.getElementById('otp-token').value;
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, otpToken })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (res.ok) {
+                document.getElementById('login-panel').style.display = 'none';
+                document.getElementById('admin-tools').style.display = 'block';
+            }
+        }
+
+        async function setup2FA() {
+            const res = await fetch('/api/admin/setup-2fa');
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('qr-image').src = data.qrCode;
+                document.getElementById('secret-text').innerText = "密钥: " + data.secret;
+                document.getElementById('qr-container').style.display = 'block';
+            } else {
+                alert(data.message);
+            }
+        }
+    </script>
+</body>
+</html>
