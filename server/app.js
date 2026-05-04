@@ -58,21 +58,18 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-async function verifyTurnstile(token) {
+// 权限中间件声明
+const adminOnly = (req, res, next) => {
+    const token = req.cookies.admin_token;
+    if (!token) return res.status(403).send({ message: '需要管理员权限' });
     try {
-        const res = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            secret: '0x4AAAAAADHW2HP8XJXbvAiaNpbLbXCZiaA',
-            response: token
-        });
-        if (!res.data.success) {
-            console.error('Turnstile 验证详情:', res.data);
-        }
-        return res.data.success;
-    } catch (e) {
-        console.error('Turnstile API 请求异常:', e.message);
-        return false;
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded.role === 'admin') return next();
+        res.status(403).send({ message: '非管理员' });
+    } catch(e) {
+        res.status(403).send({ message: '验证失效' });
     }
-}
+};
 
 const gatewayAuth = (req, res, next) => {
     const token = req.cookies.gateway_token;
@@ -85,6 +82,35 @@ const gatewayAuth = (req, res, next) => {
     }
 };
 
+async function verifyTurnstile(token) {
+    try {
+        const res = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            secret: '0x4AAAAAADHW2HP8XJXbvAiaNpbLbXCZiaA',
+            response: token
+        });
+        return res.data.success;
+    } catch (e) { return false; }
+}
+
+// 辅助函数
+function loadUsers() {
+    try {
+        if (!fs.existsSync(DB_PATH)) return [];
+        const data = fs.readFileSync(DB_PATH, 'utf8').trim();
+        return data ? JSON.parse(data) : [];
+    } catch (e) { return []; }
+}
+function saveUsers(users) { fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2)); }
+function loadFilesInfo() {
+    try {
+        if (!fs.existsSync(FILES_DB_PATH)) return [];
+        const data = fs.readFileSync(FILES_DB_PATH, 'utf8').trim();
+        return data ? JSON.parse(data) : [];
+    } catch (e) { return []; }
+}
+function saveFilesInfo(files) { fs.writeFileSync(FILES_DB_PATH, JSON.stringify(files, null, 2)); }
+
+// API 路由
 app.post('/api/verify-gateway', async (req, res) => {
     const { turnstileToken } = req.body;
     if (await verifyTurnstile(turnstileToken)) {
@@ -95,28 +121,11 @@ app.post('/api/verify-gateway', async (req, res) => {
     res.status(403).send({ message: '验证失败' });
 });
 
+// API 保护网关
 app.use('/api', (req, res, next) => {
     if (req.path === '/verify-gateway' || req.path.startsWith('/admin/login')) return next();
     gatewayAuth(req, res, next);
 });
-
-function loadUsers() {
-    try {
-        if (!fs.existsSync(DB_PATH)) return [];
-        const data = fs.readFileSync(DB_PATH, 'utf8').trim();
-        return data ? JSON.parse(data) : [];
-    } catch (e) { return []; }
-}
-function saveUsers(users) { fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2)); }
-
-function loadFilesInfo() {
-    try {
-        if (!fs.existsSync(FILES_DB_PATH)) return [];
-        const data = fs.readFileSync(FILES_DB_PATH, 'utf8').trim();
-        return data ? JSON.parse(data) : [];
-    } catch (e) { return []; }
-}
-function saveFilesInfo(files) { fs.writeFileSync(FILES_DB_PATH, JSON.stringify(files, null, 2)); }
 
 app.get('/api/resources', (req, res) => {
     fs.readdir(path.join(__dirname, '../uploads'), (err, files) => {
@@ -130,7 +139,7 @@ app.post('/api/register', async (req, res) => {
     let users = loadUsers();
     if (users.find(u => u.username === username)) return res.status(400).send({ message: '用户已存在' });
     const hashedPassword = await bcrypt.hash(password, 10);
-    users.push({ username, password: hashedPassword });
+    users.push({ username, password: hashedPassword, isBanned: false });
     saveUsers(users);
     res.status(201).send({ message: '注册成功' });
 });
@@ -140,6 +149,7 @@ app.post('/api/login', async (req, res) => {
     let users = loadUsers();
     const user = users.find(u => u.username === username);
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).send({ message: '用户名或密码错误' });
+    if (user.isBanned) return res.status(403).send({ message: '您的账号已被封禁' });
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true, path: '/' });
     res.send({ message: '登录成功' });
@@ -172,31 +182,45 @@ app.post('/api/upload', (req, res) => {
     });
 });
 
+// 管理员专用路由
 app.post('/api/admin/login', async (req, res) => {
     const { key, otpToken } = req.body;
     const savedToken = JSON.parse(fs.readFileSync(ADMIN_TOKEN_PATH, 'utf8')).key;
     if (key === savedToken) {
         const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '2h' });
         res.cookie('admin_token', token, { httpOnly: true, path: '/' });
-        return res.send({ message: '管理员登录成功（通过密钥）' });
+        return res.send({ message: '管理员登录成功' });
     }
     if (fs.existsSync(ADMIN_SECRET_PATH) && otpToken) {
         const secret = JSON.parse(fs.readFileSync(ADMIN_SECRET_PATH, 'utf8')).base32;
         if (speakeasy.totp.verify({ secret, encoding: 'base32', token: otpToken })) {
             const token = jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '2h' });
             res.cookie('admin_token', token, { httpOnly: true, path: '/' });
-            return res.send({ message: '管理员登录成功（通过 2FA）' });
+            return res.send({ message: '管理员登录成功' });
         }
     }
-    res.status(401).send({ message: '管理员验证失败' });
+    res.status(401).send({ message: '验证失败' });
 });
 
-app.get('/api/admin/setup-2fa', (req, res) => {
-    const token = req.cookies.admin_token;
-    if (!token) return res.status(401).send({ message: '未授权' });
+app.get('/api/admin/files', adminOnly, (req, res) => res.send({ files: loadFilesInfo() }));
+app.get('/api/admin/users', adminOnly, (req, res) => res.send({ users: loadUsers().map(u => ({ username: u.username, isBanned: u.isBanned })) }));
+app.post('/api/admin/toggle-ban/:username', adminOnly, (req, res) => {
+    let users = loadUsers();
+    const idx = users.findIndex(u => u.username === req.params.username);
+    if (idx === -1) return res.status(404).send({ message: '未找到用户' });
+    users[idx].isBanned = !users[idx].isBanned;
+    saveUsers(users);
+    res.send({ message: users[idx].isBanned ? '已封禁' : '已解封' });
+});
+app.delete('/api/admin/user/:username', adminOnly, (req, res) => {
+    let users = loadUsers();
+    saveUsers(users.filter(u => u.username !== req.params.username));
+    res.send({ message: '用户已注销' });
+});
+app.get('/api/admin/setup-2fa', adminOnly, (req, res) => {
     const secret = speakeasy.generateSecret({ name: 'Resource Depot Admin' });
     fs.writeFileSync(ADMIN_SECRET_PATH, JSON.stringify(secret));
-    qrcode.toDataURL(secret.otpauth_url, (err, data_url) => { res.send({ qrCode: data_url, secret: secret.base32 }); });
+    qrcode.toDataURL(secret.otpauth_url, (err, data_url) => res.send({ qrCode: data_url, secret: secret.base32 }));
 });
 
 app.delete('/api/delete/:filename', (req, res) => {
@@ -211,12 +235,12 @@ app.delete('/api/delete/:filename', (req, res) => {
         const filename = req.params.filename;
         const filesInfo = loadFilesInfo();
         const fileRecord = filesInfo.find(f => f.filename === filename);
-        if (!fileRecord) return res.status(404).send({ message: '找不到该文件记录' });
-        if (!isAdmin && fileRecord.owner !== currentUser) return res.status(403).send({ message: '你没有权限删除他人的文件' });
+        if (!fileRecord) return res.status(404).send({ message: '找不到文件' });
+        if (!isAdmin && fileRecord.owner !== currentUser) return res.status(403).send({ message: '无权限' });
         const filePath = path.join(__dirname, '../uploads', filename);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         saveFilesInfo(filesInfo.filter(f => f.filename !== filename));
-        res.send({ message: isAdmin ? '管理员已强制删除文件' : '文件已成功删除' });
+        res.send({ message: '已删除' });
     } catch (e) { res.status(401).send({ message: '验证失败' }); }
 });
 
