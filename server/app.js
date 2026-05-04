@@ -110,6 +110,31 @@ function loadFilesInfo() {
 }
 function saveFilesInfo(files) { fs.writeFileSync(FILES_DB_PATH, JSON.stringify(files, null, 2)); }
 
+// 实时检查用户状态中间件
+const userStatusCheck = (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) return next(); // 未登录用户交给后续逻辑处理
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const users = loadUsers();
+        const user = users.find(u => u.username === decoded.username);
+        
+        if (user && user.isBanned) {
+            // 如果已被封禁，清除 Cookie 并拦截
+            res.clearCookie('token');
+            return res.status(403).send({ message: '您的账号已被封禁，已强制下线' });
+        }
+        req.currentUser = decoded.username;
+        next();
+    } catch (e) {
+        next();
+    }
+};
+
+// 应用中间件
+app.use(userStatusCheck);
+
 // API 路由
 app.post('/api/verify-gateway', async (req, res) => {
     const { turnstileToken } = req.body;
@@ -120,6 +145,9 @@ app.post('/api/verify-gateway', async (req, res) => {
     }
     res.status(403).send({ message: '验证失败' });
 });
+
+// ... 后续逻辑中使用 req.currentUser 替代 jwt.verify
+
 
 // API 保护网关
 app.use('/api', (req, res, next) => {
@@ -166,18 +194,19 @@ app.get('/api/me', (req, res) => {
 
 app.post('/api/upload', (req, res) => {
     upload.single('file')(req, res, (err) => {
-        const token = req.cookies.token;
-        if (!token) return res.status(401).send({ message: '请先登录' });
-        let currentUser = '';
-        try { currentUser = jwt.verify(token, JWT_SECRET).username; } catch(e) { return res.status(401).send({ message: '登录已过期' }); }
+        if (!req.currentUser) return res.status(401).send({ message: '请先登录' });
+
         if (err) {
             if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).send({ message: '文件大小超过 100KB 限制' });
             return res.status(400).send({ message: err.message });
         }
+        
         if (!req.file) return res.status(400).send({ message: '未找到上传文件' });
+
         const filesInfo = loadFilesInfo();
-        filesInfo.push({ filename: req.file.filename, owner: currentUser });
+        filesInfo.push({ filename: req.file.filename, owner: req.currentUser });
         saveFilesInfo(filesInfo);
+
         res.send({ message: '文件上传成功', filename: req.file.filename });
     });
 });
@@ -224,24 +253,40 @@ app.get('/api/admin/setup-2fa', adminOnly, (req, res) => {
 });
 
 app.delete('/api/delete/:filename', (req, res) => {
-    const userToken = req.cookies.token;
     const adminToken = req.cookies.admin_token;
     let isAdmin = false;
-    let currentUser = '';
-    if (adminToken) { try { if (jwt.verify(adminToken, JWT_SECRET).role === 'admin') isAdmin = true; } catch(e) {} }
-    if (!isAdmin && !userToken) return res.status(401).send({ message: '请先登录' });
+
+    // 检查管理员身份
+    if (adminToken) {
+        try {
+            const decoded = jwt.verify(adminToken, JWT_SECRET);
+            if (decoded.role === 'admin') isAdmin = true;
+        } catch (e) {}
+    }
+
+    // 既非管理员也未登录
+    if (!isAdmin && !req.currentUser) return res.status(401).send({ message: '请先登录' });
+
     try {
-        if (!isAdmin) currentUser = jwt.verify(userToken, JWT_SECRET).username;
         const filename = req.params.filename;
         const filesInfo = loadFilesInfo();
         const fileRecord = filesInfo.find(f => f.filename === filename);
-        if (!fileRecord) return res.status(404).send({ message: '找不到文件' });
-        if (!isAdmin && fileRecord.owner !== currentUser) return res.status(403).send({ message: '无权限' });
+
+        if (!fileRecord) return res.status(404).send({ message: '找不到该文件记录' });
+
+        // 权限判断：管理员 或 拥有者
+        if (!isAdmin && fileRecord.owner !== req.currentUser) {
+            return res.status(403).send({ message: '你没有权限删除他人的文件' });
+        }
+
         const filePath = path.join(__dirname, '../uploads', filename);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
         saveFilesInfo(filesInfo.filter(f => f.filename !== filename));
-        res.send({ message: '已删除' });
-    } catch (e) { res.status(401).send({ message: '验证失败' }); }
+        res.send({ message: isAdmin ? '管理员已强制删除文件' : '文件已成功删除' });
+    } catch (e) {
+        res.status(500).send({ message: '删除操作失败' });
+    }
 });
 
 app.listen(3000, () => console.log('服务器运行在 http://localhost:3000'));
