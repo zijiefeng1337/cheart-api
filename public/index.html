@@ -255,19 +255,11 @@
         async function handleAuth(type) {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const tokenElement = document.querySelector('#auth-modal [name=cf-turnstile-response]');
-            const turnstileToken = tokenElement ? tokenElement.value : '';
-
-            if (!turnstileToken) {
-                showToast("Request failed : CAPTCHA timeout");
-                console.log("No auth turnstile token found");
-                return;
-            }
             
             const res = await fetch(`/api/${type}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, turnstileToken })
+                body: JSON.stringify({ username, password })
             });
             const data = await res.json();
             showToast(data.message);
@@ -275,6 +267,8 @@
                 document.getElementById('auth-modal').style.display = 'none';
                 checkAuth();
                 fetchResources();
+            } else if (data.needsGateway) {
+                document.getElementById('gateway-modal').style.display = 'flex';
             }
         }
         
