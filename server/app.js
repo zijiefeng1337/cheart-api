@@ -7,20 +7,48 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const multer = require('multer');
+const crypto = require('crypto');
 
 const app = express();
 const JWT_SECRET = 'super-secret-key';
 const GATEWAY_SECRET = 'gateway-secret-key';
 const DB_PATH = path.join(__dirname, 'db.txt');
-const storage = multer.diskStorage({
+const FILES_DB_PATH = path.join(__dirname, 'files.json');
+const ADMIN_TOKEN_PATH = path.join(__dirname, 'token.json');
+const ADMIN_SECRET_PATH = path.join(__dirname, 'admin_2fa.json');
+const uploadStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
-        // 使用原始文件名，并解决可能存在的乱码问题（针对特定客户端编码）
         const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
         cb(null, Date.now() + '-' + originalName);
     }
+});
+
+const upload = multer({ 
+    storage: uploadStorage,
+    limits: { fileSize: 100 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        if (originalName.endsWith('.bsh')) {
+            cb(null, true);
+        } else {
+            cb(new Error('仅允许上传 .bsh 后缀的文件'));
+        }
+    }
+});
+
+// 初始化管理员 Token
+if (!fs.existsSync(ADMIN_TOKEN_PATH)) {
+    const adminToken = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(ADMIN_TOKEN_PATH, JSON.stringify({ key: adminToken }, null, 2));
+    console.log('=============================================');
+    console.log('--- 管理员首次启动密钥已生成 ---');
+    console.log('密钥内容:', adminToken);
+    console.log('文件保存于:', ADMIN_TOKEN_PATH);
+    console.log('=============================================');
+}
 });
 
 const upload = multer({ 
