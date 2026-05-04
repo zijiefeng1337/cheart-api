@@ -66,9 +66,14 @@ app.use('/api', (req, res, next) => {
 });
 
 function loadUsers() {
-    if (!fs.existsSync(DB_PATH)) return [];
-    const data = fs.readFileSync(DB_PATH, 'utf8');
-    return data ? JSON.parse(data) : [];
+    try {
+        if (!fs.existsSync(DB_PATH)) return [];
+        const data = fs.readFileSync(DB_PATH, 'utf8').trim();
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        console.error('数据库解析失败，重置为空数组:', e.message);
+        return [];
+    }
 }
 
 function saveUsers(users) {
