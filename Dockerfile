@@ -17,8 +17,8 @@ COPY . .
 ARG BUILD_DATE
 RUN echo "Build date: $BUILD_DATE"
 
-# 创建上传目录并确保权限
-RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+# 创建上传目录与数据库文件并确保权限
+RUN mkdir -p /app/uploads && touch /app/server/db.txt && chown -R node:node /app && chmod -R 777 /app/server
 
 # 使用非 root 用户运行
 USER node
