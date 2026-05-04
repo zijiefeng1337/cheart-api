@@ -12,6 +12,7 @@ services:
       - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
+      - /opt/cheart-api:/app/data
     environment:
       - NODE_ENV=production
       - BUILD_DATE=${BUILD_DATE:-20260503}

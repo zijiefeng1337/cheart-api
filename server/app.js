@@ -14,60 +14,36 @@ const qrcode = require('qrcode');
 const app = express();
 const JWT_SECRET = 'super-secret-key';
 const GATEWAY_SECRET = 'gateway-secret-key';
-const DB_PATH = path.join(__dirname, 'db.txt');
-const FILES_DB_PATH = path.join(__dirname, 'files.json');
-const ADMIN_TOKEN_PATH = path.join(__dirname, 'token.json');
-const ADMIN_SECRET_PATH = path.join(__dirname, 'admin_2fa.json');
+const DB_PATH = '/app/data/db.txt';
+const FILES_DB_PATH = '/app/data/files.json';
+const ADMIN_TOKEN_PATH = '/app/data/token.json';
+const ADMIN_SECRET_PATH = '/app/data/admin_2fa.json';
 
-const uploadStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-        cb(null, Date.now() + '-' + originalName);
-    }
-});
+// 实时检查用户状态中间件
+const userStatusCheck = (req, res, next) => {
+    const token = req.cookies.token;
+    if (!token) return next();
 
-const upload = multer({ 
-    storage: uploadStorage,
-    limits: { fileSize: 100 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-        if (originalName.endsWith('.bsh')) {
-            cb(null, true);
-        } else {
-            cb(new Error('仅允许上传 .bsh 后缀的文件'));
-        }
-    }
-});
-
-// 初始化管理员 Token
-if (!fs.existsSync(ADMIN_TOKEN_PATH)) {
-    const adminToken = crypto.randomBytes(32).toString('hex');
-    fs.writeFileSync(ADMIN_TOKEN_PATH, JSON.stringify({ key: adminToken }, null, 2));
-    console.log('=============================================');
-    console.log('--- 管理员首次启动密钥已生成 ---');
-    console.log('密钥内容:', adminToken);
-    console.log('文件保存于:', ADMIN_TOKEN_PATH);
-    console.log('=============================================');
-}
-
-app.use(bodyParser.json());
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// 权限中间件声明
-const adminOnly = (req, res, next) => {
-    const token = req.cookies.admin_token;
-    if (!token) return res.status(403).send({ message: '需要管理员权限' });
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role === 'admin') return next();
-        res.status(403).send({ message: '非管理员' });
-    } catch(e) {
-        res.status(403).send({ message: '验证失效' });
+        const users = loadUsers();
+        const user = users.find(u => u.username === decoded.username);
+        
+        // 校验：用户必须存在且未被封禁
+        if (!user) {
+            res.clearCookie('token');
+            return res.status(401).send({ message: '用户不存在，请重新登录' });
+        }
+        
+        if (user.isBanned) {
+            res.clearCookie('token');
+            return res.status(403).send({ message: '您的账号已被封禁，已强制下线' });
+        }
+        req.currentUser = decoded.username;
+        next();
+    } catch (e) {
+        res.clearCookie('token');
+        next();
     }
 };
 
@@ -156,9 +132,19 @@ app.use('/api', (req, res, next) => {
 });
 
 app.get('/api/resources', (req, res) => {
+    const filesInfo = loadFilesInfo();
+    // 即使文件在磁盘上但没记录，也展示（作为未知归属）
     fs.readdir(path.join(__dirname, '../uploads'), (err, files) => {
         if (err) return res.status(500).send({ message: '读取资源失败' });
-        res.send({ resources: files });
+        
+        const resources = files.map(file => {
+            const info = filesInfo.find(f => f.filename === file);
+            return {
+                filename: file,
+                owner: info ? info.owner : '未知'
+            };
+        });
+        res.send({ resources });
     });
 });
 

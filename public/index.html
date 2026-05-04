@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>资源分享中心 - 科技感黑金版</title>
+    <title>Cheart脚本下载站</title>
     <style>
-        /* Tweaks 变量 */
         :root {
             --bg-color: oklch(0.12 0.01 250);
             --text-color: oklch(0.95 0.005 250);
@@ -23,11 +22,10 @@
             align-items: center;
             min-height: 100vh;
         }
-        header { width: 100%; padding: 2rem; text-align: center; border-bottom: 1px solid var(--card-bg); }
-        h1 { color: var(--accent-color); }
+        header { width: 100%; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-bg); box-sizing: border-box; }
+        h1 { color: var(--accent-color); margin: 0; font-size: 1.5rem; }
         .container { width: 90%; max-width: 800px; margin-top: 2rem; }
         
-        /* 提升卡片视觉质感 */
         .resource-card, .auth-box, .upload-box { 
             background: var(--card-bg); 
             padding: 1.5rem; 
@@ -36,93 +34,59 @@
             border: 1px solid rgba(255,255,255,0.05);
             transition: all 0.3s ease;
         }
-        .resource-card:hover {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 20px rgba(0,0,0,0.2);
-        }
+        .resource-card { display: flex; justify-content: space-between; align-items: center; }
+        .resource-card:hover { border-color: var(--accent-color); box-shadow: 0 0 20px rgba(0,0,0,0.2); }
 
-        /* 统一输入框与按钮风格 */
-        input { 
-            background: rgba(0,0,0,0.2); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            color: white; 
-            padding: 0.8rem; 
-            margin: 0.5rem 0; 
-            width: 100%; 
-            border-radius: 8px; 
-            box-sizing: border-box;
-        }
-        button { 
-            background: var(--accent-color); 
-            color: black; 
-            padding: 0.8rem 1.5rem; 
-            border-radius: 8px; 
-            border: none; 
-            cursor: pointer; 
-            font-weight: 700;
-            transition: opacity 0.2s;
-        }
+        input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.8rem; margin: 0.5rem 0; width: 100%; border-radius: 8px; box-sizing: border-box; }
+        button { background: var(--accent-color); color: black; padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; transition: opacity 0.2s; }
         button:hover { opacity: 0.9; }
 
-        /* 下载按钮特定样式 */
-        .btn-download {
-            background: transparent;
-            border: 1px solid var(--accent-color);
-            color: var(--accent-color);
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 0.9rem;
-        }
-        .btn-download:hover {
-            background: var(--accent-color);
-            color: black;
-        }
-    </style>
-    <div id="version-info" style="position:fixed; bottom:10px; left:10px; color:rgba(255,255,255,0.3); font-size:0.8rem;">
-        v1.0.0
-    </div>
+        .btn-download { background: transparent; border: 1px solid var(--accent-color); color: var(--accent-color); padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; }
+        .btn-download:hover { background: var(--accent-color); color: black; }
 
-    <div id="tweaks-panel" style="position:fixed; bottom:20px; right:20px; background:var(--card-bg); padding:1rem; border-radius:8px; border:1px solid var(--accent-color);">
-        <h4>Tweaks</h4>
-        <input type="color" id="accentPicker" value="#d4af37">
-        <button onclick="updateAccent()">应用金色主题</button>
-    </div>
-    <script>
-        function updateAccent() {
-            const color = document.getElementById('accentPicker').value;
-            document.documentElement.style.setProperty('--accent-color', color);
-        }
-    </script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <style>
+        #gateway-modal { display:flex; flex-direction:column; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:1000; }
+        #auth-modal { display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--card-bg); padding:2rem; border-radius:12px; z-index:100; border:1px solid var(--accent-color); min-width: 300px; }
+        #toast { display:none; position:fixed; top:20px; right:20px; background:var(--accent-color); color:black; padding:1rem; border-radius:8px; z-index:2000; font-weight: bold; }
         .cf-turnstile { margin: 1rem 0; }
     </style>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
-    <div id="gateway-modal" style="display:flex; flex-direction:column; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:1000;">
+    <div id="gateway-modal">
         <h2 style="color:var(--accent-color); margin-bottom:2rem;">安全验证</h2>
         <div class="cf-turnstile" data-sitekey="0x4AAAAAADHW2C26hJsRbWjA" data-callback="onGatewayVerified"></div>
         <p style="margin-top:1rem; color:rgba(255,255,255,0.5);">请完成验证以进入网站</p>
     </div>
 
-    <header style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--card-bg);">
-        <h1>Resource Depot</h1>
+    <header>
+        <h1>脚本列表</h1>
         <div id="auth-header">
             <button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>
         </div>
     </header>
 
-    <div id="auth-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--card-bg); padding:2rem; border-radius:12px; z-index:100; border:1px solid var(--accent-color);">
+    <div id="auth-modal">
         <h2>注册/登录</h2>
         <input type="text" id="username" placeholder="用户名">
         <input type="password" id="password" placeholder="密码">
         <button onclick="handleAuth('register')">注册</button>
         <button onclick="handleAuth('login')">登录</button>
-        <button onclick="document.getElementById('auth-modal').style.display='none'" style="background:transparent; color:white;">关闭</button>
+        <button onclick="document.getElementById('auth-modal').style.display='none'" style="background:transparent; color:white; margin-top:10px;">取消</button>
     </div>
 
-    <div id="toast" style="display:none; position:fixed; top:20px; right:20px; background:var(--accent-color); color:black; padding:1rem; border-radius:8px; z-index:200;"></div>
+    <div id="toast"></div>
+
+    <div class="container">
+        <div class="upload-box" id="upload-section" style="display:none;">
+            <h2>脚本上传</h2>
+            <input type="file" id="fileInput" style="display:none;" onchange="handleAutoUpload()">
+            <button onclick="document.getElementById('fileInput').click()">选择脚本并自动上传</button>
+            <p style="font-size:0.75rem; color:rgba(255,255,255,0.4); margin-top:0.8rem;">支持 .bsh 后缀 | 最大限制 100KB</p>
+        </div>
+        <div id="app"></div>
+    </div>
+
+    <div id="version-info" style="position:fixed; bottom:10px; left:10px; color:rgba(255,255,255,0.2); font-size:0.7rem;">v1.1.0</div>
 
     <script>
         function showToast(message) {
@@ -146,166 +110,28 @@
                 showToast("验证失败，请刷新重试");
             }
         }
-    </script>
-    <div class="container">
-        <div class="upload-box" id="upload-section" style="display:none;">
-            <h2>上传资源</h2>
-            <input type="file" id="fileInput">
-            <button onclick="handleUpload()">上传</button>
-        </div>
-        <div id="app"></div>
-    </div>
-    <script>
-        // 验证用户状态
+
         async function checkAuth() {
             try {
                 const res = await fetch('/api/me');
-                if (res.status === 403) {
-                    document.getElementById('gateway-modal').style.display = 'flex';
-                    return;
-                }
+                if (res.status === 403) { document.getElementById('gateway-modal').style.display = 'flex'; return; }
                 const authHeader = document.getElementById('auth-header');
                 const uploadSection = document.getElementById('upload-section');
                 if (res.ok) {
                     const data = await res.json();
-                    authHeader.innerHTML = `<span>👤 ${data.username}</span>`;
+                    authHeader.innerHTML = `<span style="cursor:pointer" onclick="location.href='/admin.html'">👤 ${data.username}</span>`;
                     uploadSection.style.display = 'block';
                 } else {
                     authHeader.innerHTML = `<button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>`;
                     uploadSection.style.display = 'none';
                 }
-            } catch (err) {
-                console.error("CheckAuth error:", err);
-            }
+            } catch (err) { console.error(err); }
         }
-
-        async function handleAuth(type) {
-            try {
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                
-                if (!username || !password) {
-                    showToast("请输入用户名和密码");
-                    return;
-                }
-
-                const res = await fetch(`/api/${type}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                showToast(data.message);
-                if (res.ok) {
-                    document.getElementById('auth-modal').style.display = 'none';
-                    checkAuth();
-                    fetchResources();
-                } else if (data.needsGateway) {
-                    document.getElementById('gateway-modal').style.display = 'flex';
-                }
-            } catch (err) {
-                console.error("Auth error:", err);
-                showToast("操作失败，请查看控制台");
-            }
-        }
-        
-        async function fetchResources() {
-            try {
-                const res = await fetch('/api/resources');
-                const meRes = await fetch('/api/me');
-                let currentUser = '';
-                if (meRes.ok) currentUser = (await meRes.json()).username;
-
-                if (res.status === 403) {
-                    document.getElementById('gateway-modal').style.display = 'flex';
-                    return;
-                }
-                const data = await res.json();
-                
-                // 获取文件详情（包含 owner）
-                // 为了简单起见，我们修改后端 resources 接口返回更多信息，
-                // 但目前先通过一个简单的逻辑展示删除按钮
-                const app = document.getElementById('app');
-                app.innerHTML = data.resources.map(file => `
-                    <div class="resource-card">
-                        <span>${file}</span>
-                        <div style="display:flex; gap:10px;">
-                            <a href="/uploads/${file}" download class="btn-download">下载</a>
-                            <button onclick="handleDelete('${file}')" class="btn-delete" style="background:#ff4444; color:white; padding:0.4rem 0.8rem; font-size:0.8rem;">删除</button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error("FetchResources error:", err);
-            }
-        }
-
-        async function handleDelete(filename) {
-            if (!confirm(`确定要删除 ${filename} 吗？`)) return;
-            const res = await fetch(`/api/delete/${filename}`, { method: 'DELETE' });
-            const data = await res.json();
-            showToast(data.message);
-            if (res.ok) fetchResources();
-        }
-        
-        async function handleUpload() {
-            try {
-                const fileInput = document.getElementById('fileInput');
-                if (!fileInput.files[0]) {
-                    showToast("请选择文件");
-                    return;
-                }
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-                showToast(data.message);
-                if (res.ok) {
-                    fetchResources();
-                } else if (data.needsGateway) {
-                    document.getElementById('gateway-modal').style.display = 'flex';
-                }
-            } catch (err) {
-                console.error("Upload error:", err);
-                showToast("上传失败");
-            }
-        }
-
-        // 初始化加载
-        checkAuth();
-        fetchResources();
-    </script>
-    <div class="container">
-        <div class="upload-box" id="upload-section" style="display:none;">
-            <h2>上传资源</h2>
-            <input type="file" id="fileInput">
-            <div class="cf-turnstile" data-sitekey="0x4AAAAAADHW2C26hJsRbWjA" id="upload-turnstile"></div>
-            <button onclick="handleUpload()">上传</button>
-        </div>
-        <div id="app"></div>
-    </div>
-    <script>
-        // 验证用户状态
-        async function checkAuth() {
-            const res = await fetch('/api/me');
-            const authHeader = document.getElementById('auth-header');
-            const uploadSection = document.getElementById('upload-section');
-            if (res.ok) {
-                const data = await res.json();
-                authHeader.innerHTML = `<span>👤 ${data.username}</span>`;
-                uploadSection.style.display = 'block';
-            } else {
-                authHeader.innerHTML = `<button onclick="document.getElementById('auth-modal').style.display='block'">登录/注册</button>`;
-                uploadSection.style.display = 'none';
-            }
-        }
-        checkAuth();
 
         async function handleAuth(type) {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+            if (!username || !password) { showToast("请输入完整信息"); return; }
             const res = await fetch(`/api/${type}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -317,42 +143,53 @@
                 document.getElementById('auth-modal').style.display = 'none';
                 checkAuth();
                 fetchResources();
-            } else if (data.needsGateway) {
-                document.getElementById('gateway-modal').style.display = 'flex';
             }
         }
-        
-        async function fetchResources() {
-            const res = await fetch('/api/resources');
-            const data = await res.json();
-            const app = document.getElementById('app');
-            app.innerHTML = data.resources.map(file => `
-                <div class="resource-card">
-                    <span>${file}</span>
-                    <a href="/uploads/${file}" download class="btn-download">下载</a>
-                </div>
-            `).join('');
-        }
-        fetchResources();
-        
-        async function handleUpload() {
-            const fileInput = document.getElementById('fileInput');
-            const tokenElement = document.querySelector('#upload-section [name=cf-turnstile-response]');
-            const turnstileToken = tokenElement ? tokenElement.value : '';
-            
-            if (!turnstileToken) {
-                showToast("Request failed : CAPTCHA timeout");
-                console.log("No upload turnstile token found");
-                return;
-            }
 
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('turnstileToken', turnstileToken);
-            
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            showToast((await res.json()).message);
-            fetchResources();
+        async function fetchResources() {
+            try {
+                let currentUser = '';
+                const meRes = await fetch('/api/me');
+                if (meRes.ok) currentUser = (await meRes.json()).username;
+
+                const res = await fetch('/api/resources');
+                if (res.status === 403) return;
+                const data = await res.json();
+                const app = document.getElementById('app');
+                app.innerHTML = data.resources.map(item => `
+                    <div class="resource-card">
+                        <div>
+                            <strong>${item.filename}</strong><br>
+                            <small style="color:rgba(255,255,255,0.3)">上传者: ${item.owner}</small>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <a href="/uploads/${item.filename}" download class="btn-download">下载</a>
+                            ${currentUser && (item.owner === currentUser) ? `<button onclick="handleDelete('${item.filename}')" style="background:#ff4444; color:white; padding:0.4rem 0.8rem; font-size:0.8rem; border-radius:6px; border:none;">删除</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function handleAutoUpload() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                showToast(data.message);
+                if (res.ok) fetchResources();
+                fileInput.value = '';
+            }
+        }
+
+        async function handleDelete(filename) {
+            if (!confirm(`确定要删除 ${filename} 吗？`)) return;
+            const res = await fetch(`/api/delete/${filename}`, { method: 'DELETE' });
+            const data = await res.json();
+            showToast(data.message);
+            if (res.ok) fetchResources();
         }
     </script>
 </body>
