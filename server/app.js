@@ -38,9 +38,23 @@ const upload = multer({
 });
 
 // 初始化管理员 Token
-if (!fs.existsSync(ADMIN_TOKEN_PATH)) {
-    const adminToken = crypto.randomBytes(32).toString('hex');
-    fs.writeFileSync(ADMIN_TOKEN_PATH, JSON.stringify({ key: adminToken }, null, 2));
+try {
+    if (!fs.existsSync(ADMIN_TOKEN_PATH)) {
+        console.log('正在尝试创建管理员 Token 文件:', ADMIN_TOKEN_PATH);
+        const adminToken = crypto.randomBytes(32).toString('hex');
+        fs.writeFileSync(ADMIN_TOKEN_PATH, JSON.stringify({ key: adminToken }, null, 2));
+        console.log('=============================================');
+        console.log('--- 管理员首次启动密钥已生成 ---');
+        console.log('密钥内容:', adminToken);
+        console.log('文件保存于:', ADMIN_TOKEN_PATH);
+        console.log('=============================================');
+    } else {
+        console.log('Token 文件已存在，跳过初始化:', ADMIN_TOKEN_PATH);
+    }
+} catch (err) {
+    console.error('--- 管理员初始化失败 ---');
+    console.error('错误路径:', ADMIN_TOKEN_PATH);
+    console.error('错误原因:', err.message);
 }
 
 app.use(bodyParser.json());
